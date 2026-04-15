@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr" x-data="dynastyApp()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynasty 8 - Panel Immobilier</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .theme-dark { --bg: #0a0a0a; --card: #141414; --text: #ffffff; --accent: #3b82f6; --input: #1f1f1f; }
+        .theme-rose { --bg: #fff1f2; --card: #ffffff; --text: #881337; --accent: #fb7185; --input: #fce7f3; }
+        .theme-green { --bg: #062c1b; --card: #0a3d27; --text: #ecfdf5; --accent: #10b981; --input: #0f4d34; }
+        body { background-color: var(--bg); color: var(--text); font-family: sans-serif; transition: 0.3s; }
+        .card { background-color: var(--card); border: 1px solid rgba(255,255,255,0.05); }
+        input, select { background-color: var(--input); color: var(--text); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body :class="'theme-' + currentTheme">
+
+    <template x-if="!isLoggedIn">
+        <div class="min-h-screen flex items-center justify-center p-6">
+            <div class="card p-8 rounded-2xl w-full max-w-md shadow-2xl border-t-4 border-blue-600 text-center">
+                <h1 class="text-4xl font-black mb-2 italic">DYNASTY 8</h1>
+                <p class="text-xs uppercase tracking-widest opacity-50 mb-8 font-bold">Real Estate Business</p>
+                <div class="space-y-4">
+                    <input type="email" x-model="email" placeholder="Email de l'agent" class="w-full p-3 rounded-lg outline-none">
+                    <input type="password" x-model="pass" placeholder="Mot de passe" class="w-full p-3 rounded-lg outline-none">
+                    <button @click="login()" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-lg font-bold transition-all">ENTRER EN SERVICE</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template x-if="isLoggedIn">
+        <div class="p-4 lg:p-8 max-w-7xl mx-auto" x-cloak>
+            <header class="flex justify-between items-center mb-8 card p-6 rounded-xl shadow-lg">
+                <div class="flex items-center gap-4">
+                    <div class="bg-blue-600 p-3 rounded-lg font-bold text-xl italic">D8</div>
+                    <div>
+                        <h2 class="text-xl font-bold italic uppercase tracking-tight">Nouvelle Propriété</h2>
+                        <p class="text-xs opacity-50"><span x-text="currentUser.name"></span> • <span class="text-blue-400" x-text="currentUser.grade"></span></p>
+                    </div>
+                </div>
+                <div class="flex gap-4 items-center">
+                    <select x-model="currentTheme" class="bg-transparent text-xs p-1 rounded">
+                        <option value="dark">🌙 Dark</option>
+                        <option value="rose">🌸 Rose</option>
+                        <option value="green">🌲 Dynasty Vert</option>
+                    </select>
+                    <button @click="logout()" class="text-red-500 hover:bg-red-500/10 px-3 py-1 rounded-lg border border-red-500/20 transition">Quitter</button>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <div class="card p-6 rounded-xl space-y-4">
+                        <div class="flex items-center gap-2 mb-2 text-blue-400 font-bold uppercase text-xs">
+                            <span>Informations Client</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-[10px] uppercase opacity-50 block mb-1">Nom & Prénom</label>
+                                <input type="text" x-model="form.client" class="w-full p-2 rounded-md outline-none" placeholder="Ex: Johnny Namikaze">
+                            </div>
+                            <div>
+                                <label class="text-[10px] uppercase opacity-50 block mb-1">Contact</label>
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="form.phone" class="w-full p-2 rounded-md outline-none" placeholder="555-...">
+                                    <button @click="searchClient()" class="bg-blue-600 hover:bg-blue-700 px-4 rounded-md transition text-lg">🔍</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 rounded-xl space-y-6">
+                        <div class="flex items-center gap-2 text-blue-400 font-bold uppercase text-xs">
+                            <span>Détails de la propriété</span>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[10px] uppercase opacity-50 block mb-1">Sélectionner l'intérieur</label>
+                                <select x-model="form.propId" class="w-full p-3 rounded-md outline-none appearance-none">
+                                    <option value="">-- Choisir un bien dans la liste --</option>
+                                    <template x-for="(p, index) in properties" :key="index">
+                                        <option :value="index" x-text="p.n + ' | Vente: ' + (p.s || '/') + '$ | Loc: ' + (p.l || '/') + '$'"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-white/5 rounded-lg">
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <input type="checkbox" x-model="form.garage" class="w-5 h-5 accent-blue-600">
+                                    <span class="group-hover:text-blue-400 transition">Ajouter un garage</span>
+                                </label>
+                                <select x-show="form.garage" x-model="form.garageType" class="p-2 rounded bg-black/40 outline-none">
+                                    <option value="2">2 Places (26 250$)</option>
+                                    <option value="6">6 Places (78 750$)</option>
+                                    <option value="10">10 Places (131 250$)</option>
+                                    <option value="20">20 Places (262 500$)</option>
+                                    <option value="25">25 Places (306 250$)</option>
+                                </select>
+                            </div>
+
+                            <div class="flex flex-wrap gap-4">
+                                <label class="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 p-2 rounded-md cursor-pointer">
+                                    <input type="checkbox" x-model="form.vip"> <span class="text-xs font-bold text-yellow-500 italic">⭐ RÉDUCTION VIP (-5%)</span>
+                                </label>
+                                <label class="flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 p-2 rounded-md cursor-pointer">
+                                    <input type="checkbox" x-model="form.isEntreprise"> <span class="text-xs font-bold text-purple-400">🏢 VENTE ENTREPRISE</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 rounded-xl shadow-lg border-l-4 border-blue-600">
+                        <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div class="flex gap-8">
+                                <label class="flex items-center gap-2 cursor-pointer font-bold text-lg">
+                                    <input type="radio" value="achat" x-model="form.type" class="w-5 h-5"> ACHAT
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer font-bold text-lg">
+                                    <input type="radio" value="location" x-model="form.type" class="w-5 h-5"> LOCATION
+                                </label>
+                            </div>
+                            <div x-show="form.type === 'location'" class="flex items-center gap-3 bg-blue-600/10 p-2 rounded-lg border border-blue-600/30">
+                                <span class="font-bold text-sm uppercase">Durée :</span>
+                                <select x-model="form.weeks" class="p-1 rounded bg-blue-600 text-white font-bold outline-none">
+                                    <option value="1">1 Semaine</option>
+                                    <option value="2">2 Semaines</option>
+                                    <option value="3">3 Semaines</option>
+                                    <option value="4">4 Semaines</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="card p-6 rounded-xl border border-white/10">
+                        <h3 class="text-xs font-bold opacity-50 uppercase mb-4 tracking-tighter">Documents Requis</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="h-20 border-2 border-dashed border-white/10 rounded-lg flex flex-col items-center justify-center text-[10px] text-center opacity-40 hover:opacity-100 cursor-pointer transition">
+                                📸 PROPRIÉTÉ + CI
+                            </div>
+                            <div class="h-20 border-2 border-dashed border-white/10 rounded-lg flex flex-col items-center justify-center text-[10px] text-center opacity-40 hover:opacity-100 cursor-pointer transition">
+                                📍 CARTE GPS
+                            </div>
+                            <template x-if="form.isEntreprise">
+                                <div class="col-span-2 grid grid-cols-2 gap-2">
+                                    <div class="h-16 bg-blue-900/20 border border-blue-500/30 rounded flex items-center justify-center text-[10px] font-bold">STAFF ✓</div>
+                                    <div class="h-16 bg-blue-900/20 border border-blue-500/30 rounded flex items-center justify-center text-[10px] font-bold">BADGE ✓</div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 rounded-xl bg-gradient-to-br from-blue-900/20 to-black border-t-4 border-blue-600 shadow-2xl">
+                        <h3 class="font-black italic text-xl mb-6 border-b border-white/10 pb-2 uppercase tracking-tighter">Récapitulatif</h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between opacity-70"><span>Bien :</span> <span x-text="getPropPrice() + '$'"></span></div>
+                            <div x-show="form.garage" class="flex justify-between opacity-70"><span>Garage :</span> <span x-text="getGaragePrice() + '$'"></span></div>
+                            <div x-show="form.vip" class="flex justify-between text-yellow-500 font-bold"><span>Remise VIP :</span> <span>-5%</span></div>
+                            <div class="flex justify-between text-2xl font-black mt-6 pt-4 border-t border-white/20">
+                                <span>TOTAL</span>
+                                <span class="text-blue-400" x-text="calculateFinal() + '$'"></span>
+                            </div>
+                        </div>
+                        <button @click="saveSale()" class="w-full mt-8 bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all active:scale-95">
+                            Enregistrer la vente
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <section x-show="isAdmin()" class="mt-12 p-8 card rounded-2xl border-2 border-red-600/20">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
+                    <h2 class="text-2xl font-black italic uppercase text-red-600">Administration Direction</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <button class="bg-white/5 p-6 rounded-xl border border-white/10 hover:bg-red-600 transition font-bold uppercase">Gérer les agents</button>
+                    <button class="bg-white/5 p-6 rounded-xl border border-white/10 hover:bg-red-600 transition font-bold uppercase">Historique global</button>
+                    <button class="bg-white/5 p-6 rounded-xl border border-white/10 hover:bg-red-600 transition font-bold uppercase">Bilan financier</button>
+                </div>
+            </section>
+        </div>
+    </template>
+
+    <script>
+        // CONFIGURATION FIREBASE (Clés de Mohand)
+        const firebaseConfig = {
+            apiKey: "AIzaSyC84uXf-fxi3QgQthh1YguzWcb9dRrs3RI",
+            authDomain: "dynasty-8-fb-fa.firebaseapp.com",
+            projectId: "dynasty-8-fb-fa",
+            storageBucket: "dynasty-8-fb-fa.firebasestorage.app",
+            messagingSenderId: "996866876620",
+            appId: "1:996866876620:web:e166b5da85cece41660e69",
+            measurementId: "G-0KY4Q3HC6P"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        function dynastyApp() {
+            return {
+                isLoggedIn: false,
+                email: '', pass: '',
+                currentTheme: 'dark',
+                currentUser: { name: 'Agent', grade: 'Stagiaire' },
+                properties: [
+                    {n: 'Motel', s: 0, l: 2625}, {n: 'Trailer', s: 0, l: 2625}, {n: 'House 1', s: 43750, l: 5250},
+                    {n: 'House 2', s: 61250, l: 8750}, {n: 'Villa 1 à 9', s: 1750000, l: 175000}, {n: 'Villa 10', s: 3500000, l: 175000},
+                    {n: 'Penthouse', s: 7000000, l: 262500}, {n: 'Garage 2 places', s: 26250, l: 1750}, {n: 'Garage 10 places', s: 131250, l: 8750}
+                    // Ajoute les autres ici de la même façon
+                ],
+                form: {
+                    client: '', phone: '', propId: '',
+                    garage: false, garageType: '2', vip: false,
+                    isEntreprise: false, type: 'achat', weeks: 1
+                },
+
+                login() {
+                    // Pour le test, on force la connexion. 
+                    // Plus tard tu utiliseras auth.signInWithEmailAndPassword
+                    this.isLoggedIn = true;
+                    this.currentUser = { name: 'Mohand Ramirez', grade: 'Patron' };
+                },
+                logout() { this.isLoggedIn = false; },
+                isAdmin() { return ['Patron', 'Co Patron', 'Direction'].includes(this.currentUser.grade); },
+
+                getPropPrice() {
+                    let p = this.properties[this.form.propId];
+                    if(!p) return 0;
+                    return this.form.type === 'achat' ? (p.s || 0) : (p.l || 0) * this.form.weeks;
+                },
+
+                getGaragePrice() {
+                    if(!this.form.garage) return 0;
+                    const prices = { "2": 26250, "6": 78750, "10": 131250, "20": 262500, "25": 306250 };
+                    return prices[this.form.garageType] || 0;
+                },
+
+                calculateFinal() {
+                    let total = this.getPropPrice() + this.getGaragePrice();
+                    if(this.form.vip) total *= 0.95;
+                    return Math.round(total);
+                },
+
+                searchClient() {
+                    db.collection("clients").where("phone", "==", this.form.phone).get().then(snap => {
+                        if(!snap.empty) {
+                            let d = snap.docs[0].data();
+                            this.form.client = d.name;
+                            alert("Client trouvé : " + d.name);
+                        } else {
+                            alert("Nouveau client !");
+                        }
+                    });
+                },
+
+                saveSale() {
+                    let data = {
+                        agent: this.currentUser.name,
+                        client: this.form.client,
+                        phone: this.form.phone,
+                        total: this.calculateFinal(),
+                        date: new Date()
+                    };
+                    db.collection("ventes").add(data).then(() => {
+                        alert("Vente enregistrée avec succès sur Firebase !");
+                    });
+                    // Sauvegarde client aussi
+                    db.collection("clients").doc(this.form.phone).set({ name: this.form.client, phone: this.form.phone });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
