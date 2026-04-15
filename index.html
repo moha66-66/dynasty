@@ -194,28 +194,29 @@
 
     <script>
         // CONFIGURATION FIREBASE (Clés de Mohand)
-        const firebaseConfig = {
-            apiKey: "AIzaSyC84uXf-fxi3QgQthh1YguzWcb9dRrs3RI",
-            authDomain: "dynasty-8-fb-fa.firebaseapp.com",
-            projectId: "dynasty-8-fb-fa",
-            storageBucket: "dynasty-8-fb-fa.firebasestorage.app",
-            messagingSenderId: "996866876620",
-            appId: "1:996866876620:web:e166b5da85cece41660e69",
-            measurementId: "G-0KY4Q3HC6P"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
+    // 1. COLLE TES CLÉS ICI (Configuration Firebase)
+    const firebaseConfig = {
+      apiKey: "AIzaSyC84uXf-fxi3QgQthh1YguzWcb9dRrs3RI",
+      authDomain: "dynasty-8-fb-fa.firebaseapp.com",
+      projectId: "dynasty-8-fb-fa",
+      storageBucket: "dynasty-8-fb-fa.firebasestorage.app",
+      messagingSenderId: "996866876620",
+      appId: "1:996866876620:web:e166b5da85cece41660e69",
+      measurementId: "G-0KY4Q3HC6P"
+    };
 
-        function dynastyApp() {
-            return {
-                isLoggedIn: false,
-                email: '', pass: '',
-                currentTheme: 'dark',
-                currentUser: { name: 'Agent', grade: 'Stagiaire' },
-                properties: [
-                    properties: [
-    properties: [
+    // Initialisation
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // 2. LA FONCTION QUI GÈRE LE SITE COMMENCE ENSUITE
+    function dynastyApp() {
+        return {
+            isLoggedIn: false,
+            email: '', pass: '',
+            currentUser: { name: 'Agent', grade: 'Stagiaire' },
+            properties: [
     {n: 'Motel', s: 0, l: 2625}, {n: 'Trailer', s: 0, l: 2625},
     {n: 'House 1', s: 43750, l: 5250}, {n: 'House 2', s: 61250, l: 8750},
     {n: 'House 3', s: 262500, l: 13125}, {n: 'House 4', s: 262500, l: 13125},
